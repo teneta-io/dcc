@@ -1,6 +1,9 @@
 package entities
 
-import "time"
+import (
+	"crypto/rsa"
+	"time"
+)
 
 const (
 	TaskStatusNew         Status = "new"
@@ -12,18 +15,19 @@ const (
 type TaskPayload struct {
 	Link         string       `json:"link"`
 	PriceLimit   uint         `json:"price_limit"`
+	Cost         uint         `json:"cost"`
 	Requirements Requirements `json:"requirements"`
-	Status       Status       `json:"status"`
-	CreatedAt    time.Time    `json:"created_at"`
 	ExpiredAt    time.Time    `json:"expired_at"`
 }
 
 type Task struct {
-	DCCSign      string       `json:"dcc_sign"`
-	DCCPublicKey string       `json:"dcc_public_key"`
-	DCPSign      string       `json:"dcp_sign"`
-	DCPPublicKey string       `json:"dcp_public_key"`
-	Payload      *TaskPayload `json:"payload"`
+	Payload      *TaskPayload   `json:"payload"`
+	Status       Status         `json:"status"`
+	DCCSign      []byte         `json:"dcc_sign"`
+	DCCPublicKey *rsa.PublicKey `json:"dcc_public_key"`
+	DCPSign      string         `json:"dcp_sign"`
+	DCPPublicKey string         `json:"dcp_public_key"`
+	CreatedAt    time.Time      `json:"created_at"`
 }
 
 type Status string
@@ -33,4 +37,5 @@ type Requirements struct {
 	RAM     uint8 `json:"ram"`
 	Storage uint8 `json:"storage"`
 	Network uint8 `json:"network"`
+	GPU     uint8 `json:"gpu"`
 }

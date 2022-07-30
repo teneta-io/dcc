@@ -1,0 +1,13 @@
+{
+  "url": "",
+  "price_limit": 100000,
+  "cost": 10,
+  "expired_at": "2022-12-12T23:59:59Z",
+  "requirements": {
+    "vcpu": 1,
+    "ram": 1,
+    "storage": 5,
+    "network": 10,
+    "gpu": 0
+  }
+}

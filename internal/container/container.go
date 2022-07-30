@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/sarulabs/di"
 	"github.com/teneta-io/dcc/internal/config"
-	"github.com/teneta-io/dcc/internal/http"
 	"github.com/teneta-io/dcc/internal/service"
 	"github.com/teneta-io/dcc/pkg/rabbitmq"
 	"github.com/teneta-io/dcc/pkg/redis"
@@ -20,7 +19,15 @@ func Build(ctx context.Context) di.Container {
 		{
 			Name: "Logger",
 			Build: func(ctn di.Container) (i interface{}, e error) {
-				return zap.NewProduction()
+				l, err := zap.NewDevelopment()
+
+				if err != nil {
+					return nil, err
+				}
+
+				zap.ReplaceGlobals(l)
+
+				return l, nil
 			},
 			Close: func(obj interface{}) error {
 				return obj.(*zap.Logger).Sync()
@@ -30,16 +37,6 @@ func Build(ctx context.Context) di.Container {
 			Name: "Config",
 			Build: func(ctn di.Container) (interface{}, error) {
 				return config.New()
-			},
-		},
-		{
-			Name: "Server",
-			Build: func(ctn di.Container) (interface{}, error) {
-				cfg := ctn.Get("Config").(*config.Config)
-				logger := ctn.Get("Logger").(*zap.Logger)
-				taskService := ctn.Get("TaskService").(*service.TaskService)
-
-				return http.New(ctx, &cfg.ServerConfig, logger, taskService), nil
 			},
 		},
 		{
@@ -54,9 +51,8 @@ func Build(ctx context.Context) di.Container {
 			Name: "RabbitMQ",
 			Build: func(ctn di.Container) (interface{}, error) {
 				cfg := ctn.Get("Config").(*config.Config)
-				logger := ctn.Get("Logger").(*zap.Logger)
 
-				return rabbitmq.NewClient(ctx, &cfg.RabbitMQConfig, logger)
+				return rabbitmq.NewClient(ctx, &cfg.RabbitMQConfig)
 			},
 		},
 		{
@@ -78,6 +74,7 @@ func Build(ctx context.Context) di.Container {
 		panic(err)
 	}
 	container = builder.Build()
+	container.Get("Logger")
 
 	return container
 }

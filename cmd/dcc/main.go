@@ -2,14 +2,13 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"flag"
 	"github.com/teneta-io/dcc/internal/container"
-	"github.com/teneta-io/dcc/internal/http"
+	"github.com/teneta-io/dcc/internal/service"
 	"go.uber.org/zap"
-	"os"
-	"os/signal"
-	"syscall"
 )
+
+var taskPath, privateKeyName string
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -19,16 +18,26 @@ func main() {
 	}()
 
 	c := container.Build(ctx)
-	s := c.Get("Server").(*http.Server)
-	l := c.Get("Logger").(*zap.Logger)
 
-	go s.Run()
+	flag.StringVar(&taskPath, "task", "", "json file path")
+	flag.StringVar(&privateKeyName, "private-key", "", "private key path")
+	flag.Parse()
 
-	l.Info(fmt.Sprintf("Got %s signal. Shutting down...", <-waitSigTerm()))
-}
+	if taskPath == "" {
+		zap.L().Fatal("invalid task json path")
+	}
 
-func waitSigTerm() chan os.Signal {
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, syscall.SIGTERM, syscall.SIGKILL, syscall.SIGQUIT, syscall.SIGINT)
-	return signalChan
+	if privateKeyName == "" {
+		zap.L().Fatal("invalid private key path")
+	}
+
+	zap.S().Info("task creating...")
+
+	s := c.Get("TaskService").(*service.TaskService)
+
+	if err := s.Proceed(taskPath, privateKeyName); err != nil {
+		zap.S().Fatal(err)
+	}
+
+	zap.S().Info("done.")
 }

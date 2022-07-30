@@ -2,6 +2,7 @@ package rabbitmq
 
 import (
 	"github.com/streadway/amqp"
+	"go.uber.org/zap"
 )
 
 const (
@@ -29,31 +30,21 @@ func NewTaskPublisher(client *RabbitMQ) (*TaskPublisher, error) {
 	}
 
 	publisher.ch = ch
-	go publisher.run()
 
 	return publisher, nil
 }
 
 func (publisher *TaskPublisher) Publish(body []byte) {
-	publisher.queue <- &Message{
+	if err := publisher.publish(&Message{
 		body: body,
-	}
-}
-
-func (publisher *TaskPublisher) run() {
-	for {
-		select {
-		case message := <-publisher.queue:
-			if err := publisher.publish(message); err != nil {
-				publisher.client.logger.Error(err.Error())
-			}
-		}
+	}); err != nil {
+		zap.S().Error(err.Error())
 	}
 }
 
 func (publisher *TaskPublisher) publish(message *Message) error {
 	if publisher.client.connection == nil {
-		publisher.client.logger.Panic(ErrSendBeforeEstablishConnection.Error())
+		zap.S().Panic(ErrSendBeforeEstablishConnection.Error())
 	}
 
 	queue, err := publisher.ch.QueueDeclare(
@@ -66,7 +57,7 @@ func (publisher *TaskPublisher) publish(message *Message) error {
 	)
 
 	if err != nil {
-		publisher.client.logger.Error(err.Error())
+		zap.S().Error(err.Error())
 		return err
 	}
 

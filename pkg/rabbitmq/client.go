@@ -27,28 +27,25 @@ type Message struct {
 
 type RabbitMQ struct {
 	ctx        context.Context
-	logger     *zap.Logger
 	connection *Connection
 }
 
 type Connection struct {
-	logger *zap.Logger
 	*amqp.Connection
 }
 
 type Channel struct {
-	logger *zap.Logger
 	*amqp.Channel
 	closed int32
 }
 
-func NewClient(ctx context.Context, cfg *config.RabbitMQConfig, logger *zap.Logger) (*RabbitMQ, error) {
+func NewClient(ctx context.Context, cfg *config.RabbitMQConfig) (*RabbitMQ, error) {
 	var err error
-	client := &RabbitMQ{ctx: ctx, logger: logger.Named("RabbitMQClient")}
+	client := &RabbitMQ{ctx: ctx}
 	dsnList := strings.Split(cfg.DSNList, ";")
 
 	if len(dsnList) < 1 {
-		client.logger.Error(ErrAMQPConfigurationEmpty.Error())
+		zap.S().Error(ErrAMQPConfigurationEmpty.Error())
 		return nil, ErrAMQPConfigurationEmpty
 	}
 
@@ -60,7 +57,7 @@ func NewClient(ctx context.Context, cfg *config.RabbitMQConfig, logger *zap.Logg
 }
 
 func (client *RabbitMQ) Connect(dsnList []string) error {
-	client.logger.Info("Connecting to rabbitMQ...")
+	zap.S().Info("Connecting to rabbitMQ...")
 
 	nodeSequence := 0
 	conn, err := amqp.DialConfig(dsnList[nodeSequence], amqp.Config{
@@ -68,12 +65,11 @@ func (client *RabbitMQ) Connect(dsnList []string) error {
 	})
 
 	if err != nil {
-		client.logger.Error(ErrCouldNotEstablishRabbitMQConnection.Error(), zap.Any("error", err))
+		zap.S().Error(ErrCouldNotEstablishRabbitMQConnection.Error(), zap.Any("error", err))
 		return err
 	}
 
 	client.connection = &Connection{
-		client.logger,
 		conn,
 	}
 
@@ -82,11 +78,11 @@ func (client *RabbitMQ) Connect(dsnList []string) error {
 			reason, ok := <-client.connection.NotifyClose(make(chan *amqp.Error))
 
 			if !ok {
-				client.logger.Debug("connection closed")
+				zap.S().Debug("connection closed")
 				break
 			}
 
-			client.logger.Info("connection closed", zap.Any("reason", reason))
+			zap.S().Info("connection closed", zap.Any("reason", reason))
 
 			for {
 				time.Sleep(3 * time.Second)
@@ -100,7 +96,7 @@ func (client *RabbitMQ) Connect(dsnList []string) error {
 					break
 				}
 
-				client.logger.Error(ErrConnectionRecreateFailed.Error(), zap.Any("error", err))
+				zap.S().Error(ErrConnectionRecreateFailed.Error(), zap.Any("error", err))
 			}
 		}
 	}(dsnList, &nodeSequence)
@@ -117,7 +113,6 @@ func (c *Connection) Channel() (*Channel, error) {
 
 	channel := &Channel{
 		Channel: ch,
-		logger:  c.logger,
 	}
 
 	go func() {
@@ -125,11 +120,11 @@ func (c *Connection) Channel() (*Channel, error) {
 			reason, ok := <-channel.NotifyClose(make(chan *amqp.Error))
 
 			if !ok {
-				c.logger.Debug("channel closed")
+				zap.S().Debug("channel closed")
 				break
 			}
 
-			c.logger.Info("channel closed", zap.Any("reason", reason))
+			zap.S().Info("channel closed", zap.Any("reason", reason))
 
 			for {
 				time.Sleep(3 * time.Second)
@@ -140,7 +135,7 @@ func (c *Connection) Channel() (*Channel, error) {
 					break
 				}
 
-				c.logger.Error(ErrChannelRecreateFailed.Error(), zap.Any("error", err))
+				zap.S().Error(ErrChannelRecreateFailed.Error(), zap.Any("error", err))
 			}
 		}
 	}()
@@ -199,7 +194,7 @@ func (ch *Channel) Consume(queue, consumer string, autoAck, exclusive, noLocal, 
 
 func (client *RabbitMQ) failOnError(msg string, err error) {
 	if err != nil {
-		client.logger.Panic(msg, zap.Any("error", err))
+		zap.S().Panic(msg, zap.Any("error", err))
 	}
 }
 
