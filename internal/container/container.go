@@ -2,6 +2,7 @@ package container
 
 import (
 	"context"
+	redis2 "github.com/go-redis/redis/v8"
 	"github.com/sarulabs/di"
 	"github.com/teneta-io/dcc/internal/config"
 	"github.com/teneta-io/dcc/internal/service"
@@ -44,7 +45,7 @@ func Build(ctx context.Context) di.Container {
 			Build: func(ctn di.Container) (interface{}, error) {
 				cfg := ctn.Get("Config").(*config.Config)
 
-				return redis.New(ctx, &cfg.RedisConfig)
+				return redis.New(ctx, cfg.RedisConfig)
 			},
 		},
 		{
@@ -52,7 +53,7 @@ func Build(ctx context.Context) di.Container {
 			Build: func(ctn di.Container) (interface{}, error) {
 				cfg := ctn.Get("Config").(*config.Config)
 
-				return rabbitmq.NewClient(ctx, &cfg.RabbitMQConfig)
+				return rabbitmq.NewClient(ctx, cfg.RabbitMQConfig)
 			},
 		},
 		{
@@ -66,8 +67,9 @@ func Build(ctx context.Context) di.Container {
 			Name: "TaskService",
 			Build: func(ctn di.Container) (interface{}, error) {
 				taskPublisher := ctn.Get("TaskPublisher").(*rabbitmq.TaskPublisher)
+				client := ctn.Get("Redis").(*redis2.Client)
 
-				return service.NewTaskService(taskPublisher), nil
+				return service.NewTaskService(taskPublisher, client), nil
 			},
 		},
 	}...); err != nil {

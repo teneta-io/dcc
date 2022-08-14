@@ -2,6 +2,7 @@ package entities
 
 import (
 	"crypto/rsa"
+	"github.com/google/uuid"
 	"time"
 )
 
@@ -21,6 +22,7 @@ type TaskPayload struct {
 }
 
 type Task struct {
+	UUID         uuid.UUID      `json:"uuid"`
 	Payload      *TaskPayload   `json:"payload"`
 	Status       Status         `json:"status"`
 	DCCSign      []byte         `json:"dcc_sign"`

@@ -1,11 +1,14 @@
 package service
 
 import (
+	"context"
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha512"
 	"encoding/json"
+	"github.com/go-redis/redis/v8"
+	"github.com/google/uuid"
 	"github.com/teneta-io/dcc/internal/entities"
 	"github.com/teneta-io/dcc/pkg/rabbitmq"
 	"github.com/teneta-io/dcc/utils"
@@ -16,11 +19,13 @@ import (
 
 type TaskService struct {
 	taskPublisher *rabbitmq.TaskPublisher
+	storage       *redis.Client
 }
 
-func NewTaskService(taskPublisher *rabbitmq.TaskPublisher) *TaskService {
+func NewTaskService(taskPublisher *rabbitmq.TaskPublisher, storage *redis.Client) *TaskService {
 	return &TaskService{
 		taskPublisher: taskPublisher,
+		storage:       storage,
 	}
 }
 
@@ -43,16 +48,19 @@ func (s *TaskService) Proceed(taskPath, privateKeyName string) error {
 		return err
 	}
 
-	task, err := json.Marshal(&entities.Task{
+	task := &entities.Task{
+		UUID:         uuid.New(),
 		DCCSign:      signature,
 		DCCPublicKey: publicKey,
-		DCPSign:      "",
-		DCPPublicKey: "",
 		Payload:      payload,
 		CreatedAt:    time.Now(),
-	})
+		Status:       entities.TaskStatusNew,
+	}
 
-	s.taskPublisher.Publish(task)
+	data, err := json.Marshal(task)
+
+	s.taskPublisher.Publish(data)
+	s.storage.SetNX(context.Background(), task.UUID.String(), data, 0)
 
 	return nil
 }
@@ -87,24 +95,6 @@ func (s *TaskService) loadKeys(name string) (*rsa.PrivateKey, *rsa.PublicKey, er
 
 	return privateKey, publicKey, nil
 }
-
-//func (s *TaskService) Proceed(payload *entities.TaskPayload, publicKey, privateKey string) error {
-//	bts, err := json.Marshal(&entities.Task{
-//		DCCSign:      s.sign(payload, privateKey),
-//		DCCPublicKey: publicKey,
-//		DCPSign:      "",
-//		DCPPublicKey: "",
-//		Payload:      payload,
-//	})
-//
-//	if err != nil {
-//		return err
-//	}
-//
-//	s.taskPublisher.Publish(bts)
-//
-//	return nil
-//}
 
 func (s *TaskService) sign(privateKey *rsa.PrivateKey, payload *entities.TaskPayload) ([]byte, error) {
 	bts, err := json.Marshal(payload)

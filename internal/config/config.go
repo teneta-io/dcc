@@ -19,9 +19,9 @@ type RabbitMQConfig struct {
 }
 
 type Config struct {
-	ServerConfig   ServerConfig   `json:"server_config" mapstructure:"server"`
-	RedisConfig    RedisConfig    `json:"redis_config" mapstructure:"redis"`
-	RabbitMQConfig RabbitMQConfig `json:"rabbit_mq_config" mapstructure:"rabbitmq"`
+	ServerConfig   *ServerConfig   `json:"server_config" mapstructure:"server"`
+	RedisConfig    *RedisConfig    `json:"redis_config" mapstructure:"redis"`
+	RabbitMQConfig *RabbitMQConfig `json:"rabbit_mq_config" mapstructure:"rabbitmq"`
 }
 
 var config = &Config{}
